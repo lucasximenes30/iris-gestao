@@ -74,7 +74,7 @@ export function Sidebar({ userEmail }: SidebarProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
         </div>
-        <span className="text-base font-bold text-slate-800 tracking-tight">Agenda Caixa</span>
+        <span className="text-base font-bold text-slate-800 tracking-tight">Iris Gestão</span>
       </div>
 
       {/* Nav */}
@@ -142,7 +142,7 @@ export function MobileHeader({ userEmail }: MobileHeaderProps) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
-          <span className="text-base font-bold text-slate-800">Agenda Caixa</span>
+          <span className="text-base font-bold text-slate-800">Iris Gestão</span>
         </div>
         <button
           id="btn-mobile-menu"
@@ -176,7 +176,7 @@ export function MobileHeader({ userEmail }: MobileHeaderProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
               </div>
-              <span className="text-base font-bold text-slate-800">Agenda Caixa</span>
+              <span className="text-base font-bold text-slate-800">Iris Gestão</span>
             </div>
 
             <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">

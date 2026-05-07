@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Agenda Caixa — Gestão Financeira',
+  title: 'Iris Gestão — Gestão Financeira',
   description: 'Sistema de gestão financeira para pedidos, festas e eventos.',
 }
 

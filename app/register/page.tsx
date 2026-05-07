@@ -46,7 +46,7 @@ export default function RegisterPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">Agenda Caixa</h1>
+          <h1 className="text-2xl font-bold text-slate-800">Iris Gestão</h1>
           <p className="text-slate-500 mt-1 text-sm">Gestão financeira simplificada</p>
         </div>
 
@@ -131,6 +131,10 @@ export default function RegisterPage() {
             <Link href="/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
               Entrar
             </Link>
+          </p>
+
+          <p className="mt-8 text-center text-xs text-slate-400">
+            Durante o desenvolvimento, você pode desativar a confirmação de e-mail em Supabase &gt; Authentication &gt; Providers &gt; Email.
           </p>
         </div>
       </div>

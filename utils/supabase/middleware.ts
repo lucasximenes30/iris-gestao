@@ -34,11 +34,16 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect /dashboard routes
+  // Protect /dashboard routes and / root
   const url = request.nextUrl
   const isProtected = url.pathname.startsWith('/dashboard')
-  const isAuthPage =
-    url.pathname === '/login' || url.pathname === '/register'
+  const isAuthPage = url.pathname === '/login' || url.pathname === '/register'
+
+  if (url.pathname === '/') {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = user ? '/dashboard' : '/login'
+    return NextResponse.redirect(redirectUrl)
+  }
 
   if (isProtected && !user) {
     const redirectUrl = request.nextUrl.clone()
