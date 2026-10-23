@@ -12,13 +12,18 @@ export async function signIn(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
+    console.error('Erro de autenticação no signIn:', error)
     let message = 'Não foi possível concluir a ação. Tente novamente.'
-    if (error.message.includes('Email not confirmed')) {
-      message = 'Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada ou desative a confirmação de e-mail no Supabase durante o desenvolvimento.'
-    } else if (error.message.includes('rate limit')) {
+    if (error.message?.includes('Email not confirmed')) {
+      message = 'Seu e-mail ainda não foi confirmado. Verifique sua caixa de entrada.'
+    } else if (error.message?.includes('rate limit')) {
       message = 'Muitas tentativas em pouco tempo. Aguarde alguns minutos antes de tentar novamente.'
-    } else if (error.message.includes('Invalid login credentials')) {
+    } else if (error.message?.includes('Invalid login credentials')) {
       message = 'E-mail ou senha inválidos.'
+    } else if (error.message?.includes('Database error querying schema')) {
+      message = 'Erro interno do Supabase Auth (campos nulos no auth.users). Execute o script SQL de atualização de tokens.'
+    } else if (error.message) {
+      message = `Erro ao autenticar: ${error.message}`
     }
     return { error: message }
   }
