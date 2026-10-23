@@ -4,16 +4,7 @@ import { useState } from 'react'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/constants'
 import { formatCurrency, formatDate } from '@/lib/formatters'
 import { createPaymentAction, updatePaymentAction, deletePaymentAction } from '../actions'
-
-type Payment = {
-  id: string
-  order_id: string
-  amount: number
-  payment_date: string
-  payment_method: string
-  description: string
-  notes?: string
-}
+import type { Payment } from '@/lib/db/payments'
 
 export default function PaymentsManager({ orderId, payments }: { orderId: string, payments: Payment[] }) {
   const [isOpen, setIsOpen] = useState(false)

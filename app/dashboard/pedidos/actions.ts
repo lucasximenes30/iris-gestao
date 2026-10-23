@@ -2,46 +2,98 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
-import { createOrder, updateOrder, deleteOrder } from '@/lib/db/orders'
+import { createOrder, updateOrder, deleteOrder, type OrderItem } from '@/lib/db/orders'
+import { createClientRecord } from '@/lib/db/clients'
+import { getActiveStore } from '@/lib/db/stores'
 import { parseCurrencyInput } from '@/lib/formatters'
+import { createPayment, updatePayment, deletePayment } from '@/lib/db/payments'
 
 export async function createOrderAction(formData: FormData) {
-  const client_name = formData.get('client_name') as string
-  const total_amount_str = formData.get('total_amount') as string
-  const estimated_cost_str = formData.get('estimated_cost') as string
+  const activeStore = await getActiveStore()
+  const storeId = activeStore?.store?.id
+
+  let client_id = formData.get('client_id') as string || null
+  let client_name = (formData.get('client_name') as string)?.trim()
+  const client_phone = (formData.get('client_phone') as string)?.trim() || null
+  const client_email = (formData.get('client_email') as string)?.trim() || null
   
-  if (!client_name) {
+  if (!client_name && !client_id) {
     return { error: 'O nome do cliente é obrigatório.' }
   }
 
-  const title = (formData.get('title') as string) || `Pedido de ${client_name}`
-  const total_amount = total_amount_str ? parseCurrencyInput(total_amount_str) : 0
-  
-  if (total_amount < 0) {
-    return { error: 'O valor total deve ser maior ou igual a zero.' }
+  // Se o cliente não existir no CRM ainda, cria automaticamente
+  if (!client_id && storeId && client_name) {
+    try {
+      const newClient = await createClientRecord({
+        store_id: storeId,
+        name: client_name,
+        phone: client_phone,
+        email: client_email
+      })
+      if (newClient?.id) {
+        client_id = newClient.id
+      }
+    } catch {
+      // Continua mesmo se der erro no auto-cadastro de cliente
+    }
   }
 
+  const title = (formData.get('title') as string)?.trim() || `Pedido de ${client_name}`
+  const total_amount_str = formData.get('total_amount') as string
+  const estimated_cost_str = formData.get('estimated_cost') as string
+  const delivery_fee_str = formData.get('delivery_fee') as string
+  const discount_amount_str = formData.get('discount_amount') as string
+
+  const total_amount = total_amount_str ? parseCurrencyInput(total_amount_str) : 0
   const estimated_cost = estimated_cost_str ? parseCurrencyInput(estimated_cost_str) : null
-  const event_date = formData.get('event_date') as string || null
+  const delivery_fee = delivery_fee_str ? parseCurrencyInput(delivery_fee_str) : 0
+  const discount_amount = discount_amount_str ? parseCurrencyInput(discount_amount_str) : 0
+
+  const delivery_type = (formData.get('delivery_type') as string) || 'pickup'
+  const delivery_address = (formData.get('delivery_address') as string)?.trim() || null
+
+  const event_date = (formData.get('event_date') as string)?.trim() || null
+  const event_time = (formData.get('event_time') as string)?.trim() || null
+  const event_location = (formData.get('event_location') as string)?.trim() || null
+
+  const status = (formData.get('status') as string) || 'confirmed'
+  const notes = (formData.get('notes') as string)?.trim() || null
+
+  // Itens do pedido (JSON)
+  let items: OrderItem[] = []
+  const itemsJson = formData.get('items') as string
+  if (itemsJson) {
+    try {
+      items = JSON.parse(itemsJson)
+    } catch (e) {
+      console.error('Erro ao fazer parse dos itens do pedido:', e)
+    }
+  }
 
   const input = {
+    store_id: storeId,
+    client_id,
     client_name,
-    client_phone: formData.get('client_phone') as string || null,
-    client_email: formData.get('client_email') as string || null,
+    client_phone,
+    client_email,
     title,
     event_date,
-    event_time: formData.get('event_time') as string || null,
-    event_location: formData.get('event_location') as string || null,
+    event_time,
+    event_location,
+    delivery_type,
+    delivery_address,
+    delivery_fee,
+    discount_amount,
     total_amount,
     estimated_cost,
-    status: formData.get('status') as string || 'draft',
-    notes: formData.get('notes') as string || null,
+    status,
+    notes,
   }
 
   let orderId: string | null = null
 
   try {
-    const order = await createOrder(input)
+    const order = await createOrder(input, items)
     if (!order?.id) {
       return { error: 'Erro ao criar o pedido. Tente novamente.' }
     }
@@ -51,73 +103,118 @@ export async function createOrderAction(formData: FormData) {
     return { error: 'Erro ao criar o pedido. Tente novamente.' }
   }
 
+  revalidatePath('/dashboard/pedidos')
+  revalidatePath('/dashboard')
+  if (client_id) revalidatePath(`/dashboard/clientes/${client_id}`)
+
   redirect(`/dashboard/pedidos/${orderId}`)
 }
 
 export async function updateOrderAction(id: string, formData: FormData) {
-  const client_name = formData.get('client_name') as string
-  const total_amount_str = formData.get('total_amount') as string
-  const estimated_cost_str = formData.get('estimated_cost') as string
+  const activeStore = await getActiveStore()
+  const storeId = activeStore?.store?.id
+
+  const client_id = formData.get('client_id') as string || null
+  const client_name = (formData.get('client_name') as string)?.trim()
+  const client_phone = (formData.get('client_phone') as string)?.trim() || null
+  const client_email = (formData.get('client_email') as string)?.trim() || null
   
   if (!client_name) {
     return { error: 'O nome do cliente é obrigatório.' }
   }
 
-  const title = (formData.get('title') as string) || `Pedido de ${client_name}`
-  const total_amount = total_amount_str ? parseCurrencyInput(total_amount_str) : 0
-  
-  if (total_amount < 0) {
-    return { error: 'O valor total deve ser maior ou igual a zero.' }
-  }
+  const title = (formData.get('title') as string)?.trim() || `Pedido de ${client_name}`
+  const total_amount_str = formData.get('total_amount') as string
+  const estimated_cost_str = formData.get('estimated_cost') as string
+  const delivery_fee_str = formData.get('delivery_fee') as string
+  const discount_amount_str = formData.get('discount_amount') as string
 
+  const total_amount = total_amount_str ? parseCurrencyInput(total_amount_str) : 0
   const estimated_cost = estimated_cost_str ? parseCurrencyInput(estimated_cost_str) : null
-  const event_date = formData.get('event_date') as string || null
+  const delivery_fee = delivery_fee_str ? parseCurrencyInput(delivery_fee_str) : 0
+  const discount_amount = discount_amount_str ? parseCurrencyInput(discount_amount_str) : 0
+
+  const delivery_type = (formData.get('delivery_type') as string) || 'pickup'
+  const delivery_address = (formData.get('delivery_address') as string)?.trim() || null
+
+  const event_date = (formData.get('event_date') as string)?.trim() || null
+  const event_time = (formData.get('event_time') as string)?.trim() || null
+  const event_location = (formData.get('event_location') as string)?.trim() || null
+
+  const status = (formData.get('status') as string) || 'confirmed'
+  const notes = (formData.get('notes') as string)?.trim() || null
+
+  // Itens do pedido (JSON)
+  let items: OrderItem[] | undefined = undefined
+  const itemsJson = formData.get('items') as string
+  if (itemsJson) {
+    try {
+      items = JSON.parse(itemsJson)
+    } catch (e) {
+      console.error('Erro ao fazer parse dos itens do pedido na edição:', e)
+    }
+  }
 
   const input = {
+    client_id,
     client_name,
-    client_phone: formData.get('client_phone') as string || null,
-    client_email: formData.get('client_email') as string || null,
+    client_phone,
+    client_email,
     title,
     event_date,
-    event_time: formData.get('event_time') as string || null,
-    event_location: formData.get('event_location') as string || null,
+    event_time,
+    event_location,
+    delivery_type,
+    delivery_address,
+    delivery_fee,
+    discount_amount,
     total_amount,
     estimated_cost,
-    status: formData.get('status') as string || 'draft',
-    notes: formData.get('notes') as string || null,
+    status,
+    notes,
   }
 
-  let success = false
-
   try {
-    await updateOrder(id, input)
-    success = true
+    await updateOrder(id, input, items)
   } catch (err: any) {
     console.error('Erro real ao atualizar pedido:', err)
     return { error: 'Erro ao atualizar o pedido. Tente novamente.' }
   }
 
-  if (success) {
-    redirect(`/dashboard/pedidos/${id}`)
+  revalidatePath(`/dashboard/pedidos/${id}`)
+  revalidatePath('/dashboard/pedidos')
+  revalidatePath('/dashboard')
+  if (client_id) revalidatePath(`/dashboard/clientes/${client_id}`)
+
+  redirect(`/dashboard/pedidos/${id}`)
+}
+
+export async function updateOrderStatusAction(id: string, newStatus: string) {
+  try {
+    await updateOrder(id, { status: newStatus })
+    revalidatePath(`/dashboard/pedidos/${id}`)
+    revalidatePath('/dashboard/pedidos')
+    revalidatePath('/dashboard')
+    return { success: true }
+  } catch (err: any) {
+    console.error('Erro ao atualizar status do pedido:', err)
+    return { error: 'Não foi possível alterar o status.' }
   }
 }
 
 export async function deleteOrderAction(id: string) {
-  let success = false
   try {
     await deleteOrder(id)
-    success = true
   } catch (err: any) {
     console.error('Erro real ao excluir pedido:', err)
     return { error: 'Erro ao excluir o pedido. Tente novamente.' }
   }
 
-  if (success) {
-    redirect('/dashboard/pedidos')
-  }
+  revalidatePath('/dashboard/pedidos')
+  revalidatePath('/dashboard/caixa')
+  revalidatePath('/dashboard')
+  redirect('/dashboard/pedidos')
 }
-
-import { createPayment, updatePayment, deletePayment } from '@/lib/db/payments'
 
 export async function createPaymentAction(formData: FormData) {
   const order_id = formData.get('order_id') as string
@@ -201,4 +298,3 @@ export async function deletePaymentAction(id: string, orderId: string) {
     return { error: 'Erro ao excluir o pagamento. Tente novamente.' }
   }
 }
-

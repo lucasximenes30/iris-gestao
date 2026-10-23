@@ -1,6 +1,10 @@
+import Link from 'next/link'
+import { notFound, redirect } from 'next/navigation'
 import { getOrderById } from '@/lib/db/orders'
-import { redirect } from 'next/navigation'
-import EditOrderForm from './edit-form'
+import { getActiveStore } from '@/lib/db/stores'
+import { getClients } from '@/lib/db/clients'
+import { getProducts } from '@/lib/db/products'
+import OrderForm from '../../order-form'
 
 export default async function EditarPedidoPage({
   params,
@@ -8,17 +12,49 @@ export default async function EditarPedidoPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
+  const active = await getActiveStore()
+  if (!active?.store?.id) {
+    redirect('/login')
+  }
+
   let order
+  let clients: any[] = []
+  let products: any[] = []
   
   try {
-    order = await getOrderById(id)
+    order = await getOrderById(id, active.store.id)
+    clients = await getClients(active.store.id)
+    products = await getProducts(active.store.id)
   } catch (error) {
     redirect('/dashboard/pedidos')
   }
 
   if (!order) {
-    redirect('/dashboard/pedidos')
+    notFound()
   }
 
-  return <EditOrderForm order={order} />
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex items-center gap-4">
+        <Link
+          href={`/dashboard/pedidos/${order.id}`}
+          className="p-2 -ml-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Editar Pedido</h1>
+          <p className="text-slate-500 mt-1 text-sm">Atualize produtos, valores, datas ou dados de entrega.</p>
+        </div>
+      </div>
+
+      <OrderForm
+        initialOrder={order}
+        availableClients={clients}
+        availableProducts={products}
+      />
+    </div>
+  )
 }
