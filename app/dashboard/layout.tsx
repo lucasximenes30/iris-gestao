@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server'
 import { getActiveStore } from '@/lib/db/stores'
 import { checkIsAdmin } from '@/lib/db/admin'
 import { Sidebar, MobileHeader } from '@/components/sidebar'
+import { PwaAssistant } from '@/components/pwa-assistant'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,10 +22,12 @@ export default async function DashboardLayout({
   }
 
   let storeName = 'Minha Loja'
+  let storeId = ''
   try {
     const active = await getActiveStore()
     if (active?.store?.name) {
       storeName = active.store.name
+      storeId = active.store.id
     }
   } catch (err) {
     console.error('Erro ao recuperar loja ativa no layout:', err)
@@ -48,6 +51,9 @@ export default async function DashboardLayout({
       <div className="flex flex-col flex-1 min-w-0">
         {/* Mobile Header */}
         <MobileHeader userEmail={user.email} storeName={storeName} isAdmin={isAdmin} />
+
+        {/* PWA & Push Notification Assistant */}
+        <PwaAssistant storeId={storeId} />
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
