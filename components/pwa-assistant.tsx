@@ -267,22 +267,22 @@ export function PwaAssistant({ storeId }: PwaAssistantProps) {
         </div>
       )}
 
-      {/* 2. FLOATING TRIGGER BUTTON (Always available in bottom-right corner) */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-5 right-5 z-40 px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg border border-indigo-500/40 flex items-center gap-2 text-xs font-bold transition-all hover:scale-105 active:scale-95"
-      >
-        <div className="relative">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-          </svg>
-          {(!isStandalone || !isSubscribed) && (
+      {/* 2. FLOATING TRIGGER BUTTON (Only shown while NOT installed or NOT subscribed) */}
+      {(!isStandalone || !isSubscribed) && (
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="fixed bottom-5 right-5 z-40 px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg border border-indigo-500/40 flex items-center gap-2 text-xs font-bold transition-all hover:scale-105 active:scale-95"
+        >
+          <div className="relative">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            </svg>
             <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-ping" />
-          )}
-        </div>
-        <span>{!isStandalone ? 'Instalar App' : isSubscribed ? 'Notificações Ativas' : 'Ativar Notificações'}</span>
-      </button>
+          </div>
+          <span>{!isStandalone ? 'Instalar App' : 'Ativar Notificações'}</span>
+        </button>
+      )}
 
       {/* 3. COMPLETE TUTORIAL & NOTIFICATION MODAL */}
       {isOpen && (
