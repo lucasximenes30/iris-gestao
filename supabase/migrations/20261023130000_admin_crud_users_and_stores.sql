@@ -55,14 +55,14 @@ begin
     raise exception 'Já existe um usuário cadastrado com este e-mail.';
   end if;
 
-  select coalesce(instance_id, '00000000-0000-00-00-00-00-00-00-00-00'::uuid)
+  select coalesce(instance_id, '00000000-0000-0000-0000-000000000000'::uuid)
   into inst_id
   from auth.users
   where instance_id is not null
   limit 1;
 
   if inst_id is null then
-    inst_id := '00000000-0000-00-00-00-00-00-00-00-00'::uuid;
+    inst_id := '00000000-0000-0000-0000-000000000000'::uuid;
   end if;
 
   insert into auth.users (
