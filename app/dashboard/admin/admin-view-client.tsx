@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import type { AdminStore, AdminUser } from '@/lib/db/admin'
-import { NewStoreModal } from './new-store-modal'
-import { deleteUserAction, toggleAdminAction } from './actions'
+import { StoreModal } from './store-modal'
+import { UserModal } from './user-modal'
+import { deleteUserAction, toggleAdminAction, deleteStoreAction } from './actions'
 import { formatDate } from '@/lib/formatters'
 
 interface AdminViewClientProps {
@@ -14,7 +15,15 @@ interface AdminViewClientProps {
 
 export function AdminViewClient({ stores, users, currentUserId }: AdminViewClientProps) {
   const [tab, setTab] = useState<'stores' | 'users'>('stores')
+  
+  // Store Modal State
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false)
+  const [storeToEdit, setStoreToEdit] = useState<AdminStore | null>(null)
+
+  // User Modal State
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false)
+  const [userToEdit, setUserToEdit] = useState<AdminUser | null>(null)
+
   const [searchStore, setSearchStore] = useState('')
   const [searchUser, setSearchUser] = useState('')
   const [loadingAction, setLoadingAction] = useState<string | null>(null)
@@ -35,6 +44,7 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
 
   const totalAdmins = users.filter((u) => u.is_admin).length
 
+  // User Actions
   async function handleDeleteUser(user: AdminUser) {
     if (user.id === currentUserId) {
       alert('Você não pode excluir sua própria conta enquanto estiver logado.')
@@ -42,11 +52,11 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
     }
 
     const confirmed = confirm(
-      `Tem certeza absoluta de que deseja excluir permanentemente o usuário "${user.email}"?\n\nEsta ação excluirá o usuário e suas permissões associadas.`
+      `Tem certeza de que deseja excluir permanentemente o usuário "${user.email}"?\n\nEsta ação excluirá o usuário do sistema.`
     )
     if (!confirmed) return
 
-    setLoadingAction(`delete-${user.id}`)
+    setLoadingAction(`delete-user-${user.id}`)
     setMessage(null)
 
     const res = await deleteUserAction(user.id)
@@ -81,12 +91,31 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
     setLoadingAction(null)
   }
 
+  // Store Actions
+  async function handleDeleteStore(store: AdminStore) {
+    const confirmed = confirm(
+      `Tem certeza de que deseja excluir permanentemente a loja "${store.name}"?\n\nATENÇÃO: Todos os pedidos, produtos, clientes e despesas associados a esta loja serão removidos.`
+    )
+    if (!confirmed) return
+
+    setLoadingAction(`delete-store-${store.id}`)
+    setMessage(null)
+
+    const res = await deleteStoreAction(store.id)
+    if (res?.error) {
+      setMessage({ text: res.error, type: 'error' })
+    } else {
+      setMessage({ text: `Loja "${store.name}" excluída com sucesso.`, type: 'success' })
+    }
+    setLoadingAction(null)
+  }
+
   return (
     <div className="space-y-6">
       {/* Notice / Feedback */}
       {message && (
         <div
-          className={`p-4 rounded-xl text-sm font-medium flex items-center justify-between ${
+          className={`p-4 rounded-xl text-sm font-medium flex items-center justify-between animate-in fade-in duration-200 ${
             message.type === 'success'
               ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
               : 'bg-red-50 text-red-800 border border-red-200'
@@ -198,13 +227,16 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
             </div>
 
             <button
-              onClick={() => setIsStoreModalOpen(true)}
+              onClick={() => {
+                setStoreToEdit(null)
+                setIsStoreModalOpen(true)
+              }}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-xs flex items-center justify-center gap-2 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Nova Loja Manual
+              Nova Loja
             </button>
           </div>
 
@@ -214,17 +246,18 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
                 <thead className="bg-slate-50 border-b border-slate-200 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                   <tr>
                     <th className="px-5 py-3.5">Nome da Loja</th>
-                    <th className="px-5 py-3.5">Slug / Identificador</th>
+                    <th className="px-5 py-3.5">Slug</th>
                     <th className="px-5 py-3.5">Contato</th>
-                    <th className="px-5 py-3.5">Proprietário (Email)</th>
+                    <th className="px-5 py-3.5">Proprietário</th>
                     <th className="px-5 py-3.5">Membros</th>
                     <th className="px-5 py-3.5">Criada em</th>
+                    <th className="px-5 py-3.5 text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredStores.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-5 py-10 text-center text-slate-400">
+                      <td colSpan={7} className="px-5 py-10 text-center text-slate-400">
                         Nenhuma loja encontrada.
                       </td>
                     </tr>
@@ -248,7 +281,7 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
                           )}
                         </td>
                         <td className="px-5 py-4 text-slate-700 text-xs">
-                          {s.owner_email || <span className="text-slate-400">Sem dono</span>}
+                          {s.owner_email || <span className="text-slate-400 italic">Sem dono</span>}
                         </td>
                         <td className="px-5 py-4">
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
@@ -257,6 +290,26 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
                         </td>
                         <td className="px-5 py-4 text-slate-500 text-xs">
                           {formatDate(s.created_at)}
+                        </td>
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => {
+                                setStoreToEdit(s)
+                                setIsStoreModalOpen(true)
+                              }}
+                              className="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => handleDeleteStore(s)}
+                              disabled={loadingAction === `delete-store-${s.id}`}
+                              className="px-2.5 py-1 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+                            >
+                              {loadingAction === `delete-store-${s.id}` ? 'Excluindo...' : 'Excluir'}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -271,7 +324,7 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
       {/* TAB 2: USUÁRIOS */}
       {tab === 'users' && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
             <div className="relative flex-1 max-w-md">
               <input
                 type="text"
@@ -284,6 +337,19 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
+
+            <button
+              onClick={() => {
+                setUserToEdit(null)
+                setIsUserModalOpen(true)
+              }}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-xs flex items-center justify-center gap-2 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Novo Usuário
+            </button>
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
@@ -356,6 +422,17 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
                           </td>
                           <td className="px-5 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
+                              {/* Edit User */}
+                              <button
+                                onClick={() => {
+                                  setUserToEdit(u)
+                                  setIsUserModalOpen(true)
+                                }}
+                                className="px-2.5 py-1 rounded-lg text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                              >
+                                Editar
+                              </button>
+
                               {/* Toggle Admin */}
                               <button
                                 onClick={() => handleToggleAdmin(u)}
@@ -377,13 +454,13 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
                               {/* Delete User */}
                               <button
                                 onClick={() => handleDeleteUser(u)}
-                                disabled={loadingAction === `delete-${u.id}` || isMe}
+                                disabled={loadingAction === `delete-user-${u.id}` || isMe}
                                 className={`px-2.5 py-1 rounded-lg text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors ${
                                   isMe ? 'opacity-40 cursor-not-allowed' : ''
                                 }`}
                                 title={isMe ? 'Você não pode excluir sua própria conta' : 'Excluir usuário'}
                               >
-                                {loadingAction === `delete-${u.id}` ? 'Excluindo...' : 'Excluir'}
+                                {loadingAction === `delete-user-${u.id}` ? 'Excluindo...' : 'Excluir'}
                               </button>
                             </div>
                           </td>
@@ -398,11 +475,26 @@ export function AdminViewClient({ stores, users, currentUserId }: AdminViewClien
         </div>
       )}
 
-      {/* New Store Modal */}
-      <NewStoreModal
+      {/* Store Modal (Create / Edit) */}
+      <StoreModal
         isOpen={isStoreModalOpen}
-        onClose={() => setIsStoreModalOpen(false)}
+        onClose={() => {
+          setIsStoreModalOpen(false)
+          setStoreToEdit(null)
+        }}
+        storeToEdit={storeToEdit}
         users={users}
+      />
+
+      {/* User Modal (Create / Edit) */}
+      <UserModal
+        isOpen={isUserModalOpen}
+        onClose={() => {
+          setIsUserModalOpen(false)
+          setUserToEdit(null)
+        }}
+        userToEdit={userToEdit}
+        stores={stores}
       />
     </div>
   )

@@ -74,6 +74,43 @@ export async function createAdminStore(input: {
   return data as string
 }
 
+export async function createAdminUser(input: {
+  email: string
+  password: string
+  name: string
+  make_admin?: boolean
+  initial_store_id?: string
+}): Promise<string> {
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc('admin_create_user', {
+    user_email: input.email,
+    user_password: input.password,
+    user_name: input.name,
+    make_admin: !!input.make_admin,
+    initial_store_id: input.initial_store_id || null,
+  })
+  if (error) throw error
+  return data as string
+}
+
+export async function updateAdminUser(input: {
+  id: string
+  name: string
+  email: string
+  password?: string
+  make_admin?: boolean
+}): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('admin_update_user', {
+    target_user_id: input.id,
+    new_name: input.name,
+    new_email: input.email,
+    new_password: input.password || null,
+    make_admin: input.make_admin !== undefined ? input.make_admin : null,
+  })
+  if (error) throw error
+}
+
 export async function deleteAdminUser(targetUserId: string): Promise<void> {
   const supabase = await createClient()
   const { error } = await supabase.rpc('admin_delete_user', {
@@ -90,3 +127,32 @@ export async function toggleAdminRole(targetUserId: string, makeAdmin: boolean):
   })
   if (error) throw error
 }
+
+export async function updateAdminStore(input: {
+  id: string
+  name: string
+  slug?: string
+  phone?: string
+  document?: string
+  owner_user_id?: string
+}): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('admin_update_store', {
+    target_store_id: input.id,
+    new_name: input.name,
+    new_slug: input.slug || null,
+    new_phone: input.phone || null,
+    new_document: input.document || null,
+    new_owner_id: input.owner_user_id || null,
+  })
+  if (error) throw error
+}
+
+export async function deleteAdminStore(targetStoreId: string): Promise<void> {
+  const supabase = await createClient()
+  const { error } = await supabase.rpc('admin_delete_store', {
+    target_store_id: targetStoreId,
+  })
+  if (error) throw error
+}
+

@@ -1,20 +1,23 @@
 'use client'
 
 import { useState } from 'react'
-import { createStoreAction } from './actions'
-import type { AdminUser } from '@/lib/db/admin'
+import { createStoreAction, updateStoreAction } from './actions'
+import type { AdminUser, AdminStore } from '@/lib/db/admin'
 
-interface NewStoreModalProps {
+interface StoreModalProps {
   isOpen: boolean
   onClose: () => void
+  storeToEdit?: AdminStore | null
   users: AdminUser[]
 }
 
-export function NewStoreModal({ isOpen, onClose, users }: NewStoreModalProps) {
+export function StoreModal({ isOpen, onClose, storeToEdit, users }: StoreModalProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   if (!isOpen) return null
+
+  const isEditing = !!storeToEdit
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -22,7 +25,13 @@ export function NewStoreModal({ isOpen, onClose, users }: NewStoreModalProps) {
     setLoading(true)
 
     const formData = new FormData(e.currentTarget)
-    const res = await createStoreAction(formData)
+    let res: { error?: string; success?: boolean }
+
+    if (isEditing && storeToEdit) {
+      res = await updateStoreAction(storeToEdit.id, formData)
+    } else {
+      res = await createStoreAction(formData)
+    }
 
     if (res?.error) {
       setError(res.error)
@@ -33,13 +42,20 @@ export function NewStoreModal({ isOpen, onClose, users }: NewStoreModalProps) {
     }
   }
 
+  // Encontra o user_id do owner atual se estiver editando
+  const currentOwner = users.find(u => u.email === storeToEdit?.owner_email)
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Nova Loja</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Crie uma nova loja no sistema manualmente</p>
+            <h2 className="text-lg font-bold text-slate-900">
+              {isEditing ? `Editar Loja: ${storeToEdit.name}` : 'Nova Loja'}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {isEditing ? 'Atualize os dados e o proprietário da loja' : 'Cadastre uma nova loja na plataforma'}
+            </p>
           </div>
           <button
             type="button"
@@ -67,6 +83,7 @@ export function NewStoreModal({ isOpen, onClose, users }: NewStoreModalProps) {
               name="name"
               type="text"
               required
+              defaultValue={storeToEdit?.name || ''}
               placeholder="Ex: Doce Sonho Confeitaria"
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-900"
             />
@@ -80,6 +97,7 @@ export function NewStoreModal({ isOpen, onClose, users }: NewStoreModalProps) {
               <input
                 name="slug"
                 type="text"
+                defaultValue={storeToEdit?.slug || ''}
                 placeholder="doce-sonho"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-900"
               />
@@ -91,6 +109,7 @@ export function NewStoreModal({ isOpen, onClose, users }: NewStoreModalProps) {
               <input
                 name="phone"
                 type="text"
+                defaultValue={storeToEdit?.phone || ''}
                 placeholder="(11) 98765-4321"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-900"
               />
@@ -104,6 +123,7 @@ export function NewStoreModal({ isOpen, onClose, users }: NewStoreModalProps) {
             <input
               name="document"
               type="text"
+              defaultValue={storeToEdit?.document || ''}
               placeholder="00.000.000/0001-00"
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-900"
             />
@@ -111,21 +131,22 @@ export function NewStoreModal({ isOpen, onClose, users }: NewStoreModalProps) {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-              Proprietário Inicial (Usuário)
+              Proprietário da Loja (Usuário)
             </label>
             <select
               name="owner_user_id"
+              defaultValue={currentOwner?.id || ''}
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-900"
             >
-              <option value="">Vincular a mim mesmo (Administrador atual)</option>
+              <option value="">(Nenhum proprietário inicial / vincular depois)</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.email} {u.name ? `(${u.name})` : ''}
+                  {u.email} {u.name ? `(${u.name})` : ''} {u.is_admin ? '⭐ Admin' : ''}
                 </option>
               ))}
             </select>
             <p className="text-[11px] text-slate-400 mt-1">
-              Selecione o usuário registrado que será o Dono desta nova loja.
+              O proprietário terá acesso total a esta loja no painel principal.
             </p>
           </div>
 
@@ -149,8 +170,10 @@ export function NewStoreModal({ isOpen, onClose, users }: NewStoreModalProps) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                   </svg>
-                  Criando Loja...
+                  Salvando...
                 </>
+              ) : isEditing ? (
+                'Salvar Alterações'
               ) : (
                 'Criar Loja'
               )}
