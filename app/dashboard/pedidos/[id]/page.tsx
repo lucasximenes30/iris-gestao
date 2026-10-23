@@ -160,28 +160,47 @@ export default async function DetalhesPedidoPage({
           </div>
 
           <div className="divide-y divide-slate-100">
-            {order.order_items.map((item: any) => (
-              <div key={item.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-800 text-sm">{item.name}</span>
-                    <span className="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
-                      x{item.quantity}
-                    </span>
-                  </div>
-                  {item.notes && (
-                    <p className="text-xs text-slate-500 italic bg-amber-50/50 p-1.5 rounded border border-amber-100/50">
-                      Sabores / Obs: {item.notes}
-                    </p>
-                  )}
-                </div>
+            {order.order_items.map((item: any) => {
+              const hasBoxes = item.notes?.includes('[Com caixetas 4 pétalas]')
+              const cleanNotes = item.notes?.replace(' | [Com caixetas 4 pétalas]', '').replace('[Com caixetas 4 pétalas]', '').trim()
+              const flavorPills = cleanNotes ? cleanNotes.split(',').map((s: string) => s.trim()).filter(Boolean) : []
 
-                <div className="flex sm:flex-col sm:items-end justify-between text-xs text-slate-500">
-                  <span>Unit: {formatCurrency(item.unit_price)}</span>
-                  <span className="text-sm font-bold text-slate-800">{formatCurrency(item.total_price)}</span>
+              return (
+                <div key={item.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-2 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-bold text-slate-800 text-sm">{item.name}</span>
+                      <span className="text-xs font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md">
+                        {item.quantity} {item.name.toLowerCase().includes('cento') ? 'cento(s)' : 'un'}
+                      </span>
+                      {hasBoxes && (
+                        <span className="text-[11px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md flex items-center gap-1">
+                          📦 Caixetas 4 pétalas
+                        </span>
+                      )}
+                    </div>
+
+                    {flavorPills.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                        {flavorPills.map((pill: string, pIdx: number) => (
+                          <span
+                            key={pIdx}
+                            className="inline-flex items-center text-xs font-semibold bg-amber-50 text-amber-900 border border-amber-200/80 px-2.5 py-1 rounded-lg shadow-2xs"
+                          >
+                            🍬 {pill}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex sm:flex-col sm:items-end justify-between text-xs text-slate-500 shrink-0">
+                    <span>Unit: {formatCurrency(item.unit_price)}</span>
+                    <span className="text-base font-black text-slate-900">{formatCurrency(item.total_price)}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {(order.delivery_fee > 0 || order.discount_amount > 0) && (

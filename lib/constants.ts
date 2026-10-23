@@ -84,3 +84,168 @@ export const EXPENSE_CATEGORIES = [
   { value: 'pro_labore', label: 'Retirada / Pró-labore' },
   { value: 'outros', label: 'Outros' }
 ]
+
+// Sabores do Catálogo Iris Brigaderia / Confeitaria
+export const CONFECTIONERY_FLAVORS = {
+  convencionais: [
+    'Amendoim',
+    'Beijinho',
+    'Brigadeiro',
+    'Brigadeiro Branco com Jujuba',
+    'Brigadeiro com Miçangas',
+    'Brigadeiro de Palha Italiana',
+    'Chocoball',
+    'Churros',
+    'Farinha Láctea',
+    'Ninho',
+    'Paçoquita',
+    'Prestígio',
+    'Tortinha de Limão',
+    'Tortinha de Maracujá'
+  ],
+  especiais: [
+    'Brigadeiro Oreo',
+    'Dourado',
+    'KitKat',
+    'Miçangas Douradas',
+    'Ferrero',
+    'Cappuccino',
+    'Casadinho',
+    'Coco Queimado',
+    'Crocante',
+    'Goiabinha',
+    'Ninho com Nutella',
+    'Olho de Sogra',
+    'Pérolas',
+    'Surpresa de Uva',
+    'Tortinha Doce de Leite',
+    'Trufado'
+  ],
+  premium: [
+    'Amêndoas',
+    'Banana',
+    'Belga',
+    'Belga Branco',
+    'Suspiro',
+    'Brownie',
+    'Creme Brûlée',
+    'Damasco',
+    'Uvinha Chique'
+  ]
+}
+
+// Lista única combinada para autocompletes e sugestões rápidas
+export const ALL_INITIAL_FLAVORS = Array.from(
+  new Set([
+    ...CONFECTIONERY_FLAVORS.convencionais,
+    ...CONFECTIONERY_FLAVORS.especiais,
+    ...CONFECTIONERY_FLAVORS.premium
+  ])
+).sort((a, b) => a.localeCompare('pt-BR'))
+
+export interface ConfectioneryPreset {
+  id: string
+  name: string
+  category: 'docinhos' | 'kits' | 'bolos' | 'outros'
+  type: 'cento' | 'kit' | 'avulso'
+  price: number
+  unit: string
+  minUnits?: number
+  boxFeePerCento?: number
+  badge?: string
+  description: string
+  flavorsGroup?: 'convencionais' | 'especiais' | 'premium'
+}
+
+export const CONFECTIONERY_PRESETS: ConfectioneryPreset[] = [
+  {
+    id: 'cento_convencional',
+    name: 'Doces Convencionais (Cento)',
+    category: 'docinhos',
+    type: 'cento',
+    price: 180,
+    unit: 'cento',
+    minUnits: 100,
+    boxFeePerCento: 8,
+    badge: 'R$ 180 / cento',
+    description: 'Sabores tradicionais: Churros, Ninho, Brigadeiro, Beijinho, etc.',
+    flavorsGroup: 'convencionais'
+  },
+  {
+    id: 'cento_personalizado',
+    name: 'Doces Personalizados (Cento)',
+    category: 'docinhos',
+    type: 'cento',
+    price: 290,
+    unit: 'cento',
+    minUnits: 100,
+    boxFeePerCento: 8,
+    badge: 'R$ 290 / cento',
+    description: 'Decorados e modelados no tema da festa (sabores convencionais)',
+    flavorsGroup: 'convencionais'
+  },
+  {
+    id: 'cento_especial',
+    name: 'Doces Especiais (Cento)',
+    category: 'docinhos',
+    type: 'cento',
+    price: 200,
+    unit: 'cento',
+    minUnits: 100,
+    badge: 'R$ 200 / cento',
+    description: 'Sabores especiais: Nutella, KitKat, Oreo, Ferrero, etc.',
+    flavorsGroup: 'especiais'
+  },
+  {
+    id: 'cento_premium',
+    name: 'Doces Premium (Cento)',
+    category: 'docinhos',
+    type: 'cento',
+    price: 300,
+    unit: 'cento',
+    minUnits: 100,
+    badge: 'R$ 300 / cento',
+    description: 'Sabores nobres: Belga, Brûlée, Brownie, Damasco, etc.',
+    flavorsGroup: 'premium'
+  },
+  {
+    id: 'kit_celebrar',
+    name: 'Kit Celebrar',
+    category: 'kits',
+    type: 'kit',
+    price: 410,
+    unit: 'kit',
+    badge: 'R$ 410',
+    description: 'Bolo 15cm (15 fatias) + 50 doces convencionais'
+  },
+  {
+    id: 'kit_festejar',
+    name: 'Kit Festejar',
+    category: 'kits',
+    type: 'kit',
+    price: 610,
+    unit: 'kit',
+    badge: 'R$ 610',
+    description: 'Bolo 15cm + 100 doces convencionais + 25 personalizados'
+  },
+  {
+    id: 'kit_comemorar',
+    name: 'Kit Comemorar',
+    category: 'kits',
+    type: 'kit',
+    price: 750,
+    unit: 'kit',
+    badge: 'R$ 750',
+    description: 'Bolo 20cm (25 fatias) + 100 doces convencionais + 35 personalizados'
+  },
+  {
+    id: 'kit_alegrar',
+    name: 'Kit Alegrar',
+    category: 'kits',
+    type: 'kit',
+    price: 910,
+    unit: 'kit',
+    badge: 'R$ 910',
+    description: 'Bolo 25cm (35 fatias) + 150 doces convencionais + 50 personalizados'
+  }
+]

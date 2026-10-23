@@ -38,7 +38,8 @@ export async function createOrderAction(formData: FormData) {
     }
   }
 
-  const title = (formData.get('title') as string)?.trim() || `Pedido de ${client_name}`
+  // Geração de título inteligente se não preenchido
+  let title = (formData.get('title') as string)?.trim()
   const total_amount_str = formData.get('total_amount') as string
   const estimated_cost_str = formData.get('estimated_cost') as string
   const delivery_fee_str = formData.get('delivery_fee') as string
@@ -70,6 +71,15 @@ export async function createOrderAction(formData: FormData) {
     }
   }
 
+  if (!title) {
+    if (items.length > 0) {
+      const summaryItems = items.map(i => i.name).slice(0, 2).join(' + ')
+      title = `${client_name} — ${summaryItems}`
+    } else {
+      title = `Encomenda de ${client_name}`
+    }
+  }
+
   const input = {
     store_id: storeId,
     client_id,
@@ -98,6 +108,29 @@ export async function createOrderAction(formData: FormData) {
       return { error: 'Erro ao criar o pedido. Tente novamente.' }
     }
     orderId = order.id
+
+    // Registro opcional imediato do sinal (50% ou valor customizado)
+    const registerInitialPayment = formData.get('register_initial_payment') === 'true'
+    const initialPaymentAmountStr = formData.get('initial_payment_amount') as string
+    const initialPaymentMethod = (formData.get('initial_payment_method') as string) || 'pix'
+
+    if (registerInitialPayment && initialPaymentAmountStr) {
+      const paymentAmount = parseCurrencyInput(initialPaymentAmountStr)
+      if (paymentAmount > 0) {
+        try {
+          await createPayment({
+            order_id: order.id,
+            store_id: storeId,
+            amount: paymentAmount,
+            payment_method: initialPaymentMethod,
+            payment_date: new Date().toISOString().split('T')[0],
+            description: 'Sinal 50% de confirmação (Entrada)'
+          })
+        } catch (payErr) {
+          console.error('Erro ao lançar sinal inicial automático:', payErr)
+        }
+      }
+    }
   } catch (err: any) {
     console.error('Erro real ao criar pedido:', err)
     return { error: 'Erro ao criar o pedido. Tente novamente.' }
