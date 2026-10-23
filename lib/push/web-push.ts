@@ -19,7 +19,8 @@ export type PushPayload = {
 
 export async function sendPushToSubscription(
   sub: { endpoint: string; p256dh: string; auth: string },
-  payload: PushPayload
+  payload: PushPayload,
+  onExpired: (endpoint: string) => Promise<void> = removePushSubscription
 ) {
   if (!publicKey || !privateKey) {
     console.warn('VAPID keys não configuradas. Pulando envio de push.')
@@ -42,7 +43,7 @@ export async function sendPushToSubscription(
     // If subscription is expired or unsubscribed, remove from database
     if (err.statusCode === 404 || err.statusCode === 410) {
       try {
-        await removePushSubscription(sub.endpoint)
+        await onExpired(sub.endpoint)
       } catch (cleanErr) {
         console.error('Erro ao remover subscription expirada:', cleanErr)
       }

@@ -1,7 +1,6 @@
 // Iris Gestão — Service Worker (PWA & Web Push)
 const CACHE_NAME = 'iris-gestao-v1'
 const STATIC_ASSETS = [
-  '/',
   '/manifest.webmanifest',
   '/icons/icon-192.png',
   '/icons/icon-512.png',

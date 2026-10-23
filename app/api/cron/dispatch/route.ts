@@ -1,31 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { sendPushToSubscription } from '@/lib/push/web-push'
+import { sendPushToSubscription, type PushPayload } from '@/lib/push/web-push'
 
 export const dynamic = 'force-dynamic'
 
-// Initialize Supabase admin/anon client for cron processing
-function getCronSupabase() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-  return createClient(url, key)
+type DispatchStore = {
+  store_id: string
+  store_name: string
+  settings: Record<string, unknown> | null
+  subscriptions: { endpoint: string; p256dh: string; auth: string }[]
+  today_orders: { id: string; client_name: string | null; event_time: string | null }[]
+  week_orders_count: number
 }
 
-function verifyCronSecret(req: NextRequest): boolean {
-  const expectedSecret = process.env.CRON_SECRET
-  if (!expectedSecret) return true // Allow if no secret is configured yet
+const TIMEZONE = 'America/Sao_Paulo'
 
+/** Data de hoje (YYYY-MM-DD) e dia da semana no fuso do Brasil, independente do fuso do servidor. */
+function getLocalToday() {
+  const now = new Date()
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now)
+  const weekday = new Intl.DateTimeFormat('en-US', { timeZone: TIMEZONE, weekday: 'short' }).format(now)
+  return { today, isSunday: weekday === 'Sun' }
+}
+
+/** Soma dias a uma data YYYY-MM-DD usando aritmética UTC pura (sem desvio de fuso). */
+function addDays(dateStr: string, days: number) {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d + days))
+  return date.toISOString().slice(0, 10)
+}
+
+function getCronSecretFromRequest(req: NextRequest): string | null {
   const authHeader = req.headers.get('authorization')
-  if (authHeader && authHeader.replace(/^Bearer\s+/i, '') === expectedSecret) {
-    return true
-  }
-
-  const querySecret = req.nextUrl.searchParams.get('secret')
-  if (querySecret && querySecret === expectedSecret) {
-    return true
-  }
-
-  return false
+  if (authHeader) return authHeader.replace(/^Bearer\s+/i, '')
+  return req.nextUrl.searchParams.get('secret')
 }
 
 export async function GET(req: NextRequest) {
@@ -37,134 +50,103 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleDispatch(req: NextRequest) {
-  if (!verifyCronSecret(req)) {
+  const expectedSecret = process.env.CRON_SECRET
+  const providedSecret = getCronSecretFromRequest(req)
+
+  if (!expectedSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET não configurado no servidor.' }, { status: 500 })
+  }
+  if (providedSecret !== expectedSecret) {
     return NextResponse.json({ error: 'Acesso não autorizado. Secret inválido.' }, { status: 401 })
   }
 
-  const supabase = getCronSupabase()
+  // Cliente sem sessão: o acesso aos dados é liberado pelas RPCs SECURITY DEFINER,
+  // que validam o mesmo segredo no banco (sem service_role).
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { persistSession: false } }
+  )
 
-  try {
-    // 1. Fetch stores
-    const { data: stores, error: storesError } = await supabase
-      .from('stores')
-      .select('id, name, timezone, settings')
+  const { today, isSunday } = getLocalToday()
+  const weekStart = addDays(today, 1) // segunda
+  const weekEnd = addDays(today, 7)   // domingo seguinte
 
-    if (storesError) throw storesError
+  const { data, error } = await supabase.rpc('cron_get_dispatch_data', {
+    p_secret: providedSecret,
+    p_today: today,
+    p_week_start: weekStart,
+    p_week_end: weekEnd,
+  })
 
-    let totalNotificationsSent = 0
-    const summary: any[] = []
+  if (error) {
+    console.error('Erro ao buscar dados do cron:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
-    // Current date and day of week in Brazil timezone (America/Sao_Paulo / America/Fortaleza)
-    const nowInTz = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }))
-    const dayOfWeek = nowInTz.getDay() // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-    const isSunday = dayOfWeek === 0
+  const removeExpired = async (endpoint: string) => {
+    await supabase.rpc('cron_remove_push_subscription', { p_secret: providedSecret, p_endpoint: endpoint })
+  }
 
-    const today = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Sao_Paulo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date())
+  const stores = (data || []) as DispatchStore[]
+  let totalNotificationsSent = 0
+  const summary: Record<string, unknown>[] = []
 
-    // Upcoming week range (Monday through Sunday) for Sunday weekly planning
-    const nextMonday = new Date(nowInTz)
-    nextMonday.setDate(nextMonday.getDate() + 1)
-    const nextMondayStr = nextMonday.toISOString().slice(0, 10)
+  for (const store of stores) {
+    const settings = store.settings || {}
+    const notifications: PushPayload[] = []
 
-    const nextSunday = new Date(nowInTz)
-    nextSunday.setDate(nextSunday.getDate() + 7)
-    const nextSundayStr = nextSunday.toISOString().slice(0, 10)
-
-    for (const store of (stores || [])) {
-      // Push subscriptions for this store
-      const { data: subscriptions, error: subsError } = await supabase
-        .from('push_subscriptions')
-        .select('id, endpoint, p256dh, auth')
-        .eq('store_id', store.id)
-
-      if (subsError || !subscriptions || subscriptions.length === 0) {
-        summary.push({ store: store.name, subscribers: 0, sent: 0 })
-        continue
-      }
-
-      let storeSent = 0
-
-      // 2. DAILY NOTIFICATION: Orders scheduled for TODAY
-      const { data: todayOrders, error: todayError } = await supabase
-        .from('orders')
-        .select('id, client_name, title, event_time, status')
-        .eq('store_id', store.id)
-        .eq('event_date', today)
-        .not('status', 'in', '("cancelled","completed")')
-
-      if (!todayError && todayOrders && todayOrders.length > 0) {
-        const orderCount = todayOrders.length
-        const clientNames = todayOrders.map((o) => o.client_name).filter(Boolean)
-        const preview = clientNames.slice(0, 3).join(', ') + (clientNames.length > 3 ? '...' : '')
-
-        const dailyPayload = {
-          title: `🎂 ${store.name}: ${orderCount} encomenda(s) hoje!`,
-          body: `Clientes: ${preview}. Toque para conferir horários e detalhes de entrega.`,
-          url: '/dashboard/pedidos',
-          tag: `daily-agenda-${today}`,
-        }
-
-        for (const sub of subscriptions) {
-          const res = await sendPushToSubscription(sub, dailyPayload)
-          if (res.success) {
-            storeSent++
-            totalNotificationsSent++
-          }
-        }
-      }
-
-      // 3. SUNDAY WEEKLY NOTIFICATION: Agenda for the upcoming week
-      if (isSunday) {
-        const { data: weekOrders, error: weekError } = await supabase
-          .from('orders')
-          .select('id, client_name, title, event_date, status')
-          .eq('store_id', store.id)
-          .gte('event_date', nextMondayStr)
-          .lte('event_date', nextSundayStr)
-          .not('status', 'in', '("cancelled","completed")')
-
-        if (!weekError && weekOrders && weekOrders.length > 0) {
-          const weekCount = weekOrders.length
-          const weeklyPayload = {
-            title: `📅 ${store.name}: Agenda da Semana (${weekCount} encomendas)`,
-            body: `Planeje sua produção! Você tem ${weekCount} encomenda(s) agendadas para esta semana. Toque para ver o calendário.`,
-            url: '/dashboard/pedidos',
-            tag: `weekly-agenda-${today}`,
-          }
-
-          for (const sub of subscriptions) {
-            const res = await sendPushToSubscription(sub, weeklyPayload)
-            if (res.success) {
-              storeSent++
-              totalNotificationsSent++
-            }
-          }
-        }
-      }
-
-      summary.push({
-        store: store.name,
-        isSunday,
-        subscribers: subscriptions.length,
-        sent: storeSent,
+    // Resumo diário (todos os dias)
+    if (settings.notify_daily !== false && store.today_orders.length > 0) {
+      const count = store.today_orders.length
+      const names = store.today_orders.map((o) => o.client_name).filter(Boolean) as string[]
+      const preview = names.slice(0, 3).join(', ') + (names.length > 3 ? '...' : '')
+      notifications.push({
+        title: `🎂 ${store.store_name}: ${count} encomenda(s) hoje!`,
+        body: `Clientes: ${preview}. Toque para conferir horários e detalhes de entrega.`,
+        url: '/dashboard/pedidos',
+        tag: `daily-agenda-${today}`,
       })
     }
 
-    return NextResponse.json({
-      success: true,
-      timestamp: new Date().toISOString(),
-      dateChecked: today,
-      isSunday,
-      totalNotificationsSent,
-      summary,
+    // Agenda da semana (somente domingo) — enviada mesmo com semana vazia, para ela saber
+    if (isSunday && settings.notify_weekly !== false) {
+      const count = Number(store.week_orders_count || 0)
+      notifications.push({
+        title: `📅 ${store.store_name}: Agenda da semana`,
+        body:
+          count > 0
+            ? `Você tem ${count} encomenda(s) de segunda a domingo. Toque para planejar a produção.`
+            : 'Nenhuma encomenda agendada para esta semana até agora.',
+        url: '/dashboard/pedidos',
+        tag: `weekly-agenda-${today}`,
+      })
+    }
+
+    let sent = 0
+    for (const payload of notifications) {
+      for (const sub of store.subscriptions) {
+        const res = await sendPushToSubscription(sub, payload, removeExpired)
+        if (res.success) sent++
+      }
+    }
+    totalNotificationsSent += sent
+
+    summary.push({
+      store: store.store_name,
+      subscribers: store.subscriptions.length,
+      ordersToday: store.today_orders.length,
+      ordersThisWeek: isSunday ? store.week_orders_count : undefined,
+      sent,
     })
-  } catch (err: any) {
-    console.error('Erro na execução do Cron Dispatch:', err)
-    return NextResponse.json({ error: err.message || 'Erro no processamento do cron' }, { status: 500 })
   }
+
+  return NextResponse.json({
+    success: true,
+    dateChecked: today,
+    isSunday,
+    storesWithSubscribers: stores.length,
+    totalNotificationsSent,
+    summary,
+  })
 }

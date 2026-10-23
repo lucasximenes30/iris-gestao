@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createManualCashMovement, deleteManualCashMovement } from '@/lib/db/cash-movements'
 import { getActiveStore } from '@/lib/db/stores'
-import { parseCurrencyInput } from '@/lib/formatters'
+import { parseCurrencyInput, getTodayISO } from '@/lib/formatters'
 
 export async function createManualMovementAction(formData: FormData) {
   const active = await getActiveStore()
@@ -30,7 +30,7 @@ export async function createManualMovementAction(formData: FormData) {
       type,
       description: description.trim(),
       amount,
-      movement_date: movement_date || new Date().toISOString().split('T')[0],
+      movement_date: movement_date || getTodayISO(),
       payment_method,
     })
 

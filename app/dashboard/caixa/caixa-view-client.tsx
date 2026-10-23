@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { CashMovement } from '@/lib/db/cash-movements'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/constants'
-import { formatCurrency, formatDateTime } from '@/lib/formatters'
+import { formatCurrency, formatDateTime, getMonthKey } from '@/lib/formatters'
 import { ManualMovementModal } from './manual-movement-modal'
 import { deleteManualMovementAction } from './actions'
 
@@ -18,10 +18,8 @@ export function CaixaViewClient({ initialMovements }: CaixaViewClientProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [loadingDelete, setLoadingDelete] = useState<string | null>(null)
 
-  const now = new Date()
-  const currentMonth = now.toISOString().slice(0, 7)
-  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  const lastMonth = lastMonthDate.toISOString().slice(0, 7)
+  const currentMonth = getMonthKey(0)
+  const lastMonth = getMonthKey(-1)
 
   const filteredMovements = initialMovements.filter((m) => {
     // Search

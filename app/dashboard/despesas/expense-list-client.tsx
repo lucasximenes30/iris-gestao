@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import type { Expense } from '@/lib/db/expenses'
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from '@/lib/constants'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import { formatCurrency, formatDate, getMonthKey } from '@/lib/formatters'
 import { ExpenseModal } from './expense-modal'
 import { deleteExpenseAction } from './actions'
 
@@ -20,10 +20,8 @@ export function ExpenseListClient({ expenses, orders }: ExpenseListClientProps) 
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [loadingDelete, setLoadingDelete] = useState<string | null>(null)
 
-  const now = new Date()
-  const currentMonth = now.toISOString().slice(0, 7)
-  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  const lastMonth = lastMonthDate.toISOString().slice(0, 7)
+  const currentMonth = getMonthKey(0)
+  const lastMonth = getMonthKey(-1)
 
   const filteredExpenses = expenses.filter((e) => {
     // Search

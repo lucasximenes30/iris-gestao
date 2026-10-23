@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { Expense } from '@/lib/db/expenses'
 import { EXPENSE_CATEGORIES, PAYMENT_METHOD_OPTIONS } from '@/lib/constants'
+import { getTodayISO } from '@/lib/formatters'
 import { createExpenseAction, updateExpenseAction } from './actions'
 
 interface ExpenseModalProps {
@@ -114,7 +115,7 @@ export function ExpenseModal({ isOpen, onClose, initialData, orders }: ExpenseMo
                 name="expense_date"
                 type="date"
                 required
-                defaultValue={initialData?.expense_date || new Date().toISOString().split('T')[0]}
+                defaultValue={initialData?.expense_date || getTodayISO()}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-900"
               />
             </div>

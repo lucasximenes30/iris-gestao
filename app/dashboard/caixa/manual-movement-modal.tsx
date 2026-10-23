@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/constants'
+import { getTodayISO } from '@/lib/formatters'
 import { createManualMovementAction } from './actions'
 
 interface ManualMovementModalProps {
@@ -137,7 +138,7 @@ export function ManualMovementModal({ isOpen, onClose }: ManualMovementModalProp
                 name="movement_date"
                 type="date"
                 required
-                defaultValue={new Date().toISOString().split('T')[0]}
+                defaultValue={getTodayISO()}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-900"
               />
             </div>

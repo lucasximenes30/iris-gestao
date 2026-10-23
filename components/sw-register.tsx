@@ -4,7 +4,8 @@ import { useEffect } from 'react'
 
 export function ServiceWorkerRegister() {
   useEffect(() => {
-    if ('serviceWorker' in navigator && window.location.protocol === 'https:' || window.location.hostname === 'localhost') {
+    const isSecureContext = window.location.protocol === 'https:' || window.location.hostname === 'localhost'
+    if ('serviceWorker' in navigator && isSecureContext) {
       navigator.serviceWorker
         .register('/sw.js')
         .then((reg) => {

@@ -5,7 +5,7 @@ import type { Order } from '@/lib/db/orders'
 import type { Expense } from '@/lib/db/expenses'
 import type { CashMovement } from '@/lib/db/cash-movements'
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS, ORDER_STATUS } from '@/lib/constants'
-import { formatCurrency } from '@/lib/formatters'
+import { formatCurrency, getMonthKey, getTodayISO } from '@/lib/formatters'
 
 interface ReportsViewClientProps {
   orders: Order[]
@@ -16,15 +16,10 @@ interface ReportsViewClientProps {
 export function ReportsViewClient({ orders, expenses, movements }: ReportsViewClientProps) {
   const [period, setPeriod] = useState<'current_month' | 'last_month' | 'last_3_months' | 'year' | 'all'>('current_month')
 
-  const now = new Date()
-  const currentMonthStr = now.toISOString().slice(0, 7)
-  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-  const lastMonthStr = lastMonthDate.toISOString().slice(0, 7)
-
-  const threeMonthsAgoDate = new Date(now.getFullYear(), now.getMonth() - 2, 1)
-  const threeMonthsAgoStr = threeMonthsAgoDate.toISOString().slice(0, 10)
-
-  const currentYearStr = now.getFullYear().toString()
+  const currentMonthStr = getMonthKey(0)
+  const lastMonthStr = getMonthKey(-1)
+  const threeMonthsAgoStr = `${getMonthKey(-2)}-01`
+  const currentYearStr = getTodayISO().slice(0, 4)
 
   // Filter Movements
   const filteredMovements = movements.filter((m) => {

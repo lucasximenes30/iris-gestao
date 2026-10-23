@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { PAYMENT_METHOD_OPTIONS } from '@/lib/constants'
-import { formatCurrency, formatDate } from '@/lib/formatters'
+import { formatCurrency, formatDate, getTodayISO } from '@/lib/formatters'
 import { createPaymentAction, updatePaymentAction, deletePaymentAction } from '../actions'
 import type { Payment } from '@/lib/db/payments'
 
@@ -192,7 +192,7 @@ export default function PaymentsManager({ orderId, payments }: { orderId: string
                     name="payment_date"
                     type="date"
                     required
-                    defaultValue={editingPayment?.payment_date || new Date().toISOString().split('T')[0]}
+                    defaultValue={editingPayment?.payment_date || getTodayISO()}
                     className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>

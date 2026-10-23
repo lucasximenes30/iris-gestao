@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createExpense, updateExpense, deleteExpense } from '@/lib/db/expenses'
 import { getActiveStore } from '@/lib/db/stores'
-import { parseCurrencyInput } from '@/lib/formatters'
+import { parseCurrencyInput, getTodayISO } from '@/lib/formatters'
 
 export async function createExpenseAction(formData: FormData) {
   const active = await getActiveStore()
@@ -31,7 +31,7 @@ export async function createExpenseAction(formData: FormData) {
       store_id: storeId,
       description: description.trim(),
       amount,
-      expense_date: expense_date || new Date().toISOString().split('T')[0],
+      expense_date: expense_date || getTodayISO(),
       category,
       payment_method,
       notes,
@@ -70,7 +70,7 @@ export async function updateExpenseAction(expenseId: string, formData: FormData)
     await updateExpense(expenseId, {
       description: description.trim(),
       amount,
-      expense_date: expense_date || new Date().toISOString().split('T')[0],
+      expense_date: expense_date || getTodayISO(),
       category,
       payment_method,
       notes,
