@@ -3,6 +3,8 @@
 -- Funções administrativas completas (CRUD de Usuários e Lojas)
 -- ============================================================
 
+create extension if not exists "pgcrypto" with schema extensions;
+
 -- 0. Correção de compatibilidade no auth.users (evita o erro 'converting NULL to string')
 update auth.users
 set 
@@ -30,7 +32,7 @@ create or replace function public.admin_create_user(
 returns uuid
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'extensions', 'auth'
 as $$
 declare
   new_user_id uuid := gen_random_uuid();
@@ -92,7 +94,7 @@ begin
     new_user_id,
     inst_id,
     clean_email,
-    crypt(clean_pwd, gen_salt('bf')),
+    extensions.crypt(clean_pwd, extensions.gen_salt('bf')),
     now(),
     '{"provider":"email","providers":["email"]}'::jsonb,
     jsonb_build_object('name', clean_name, 'email', clean_email),
@@ -160,7 +162,7 @@ create or replace function public.admin_update_user(
 returns void
 language plpgsql
 security definer
-set search_path = ''
+set search_path = 'public', 'extensions', 'auth'
 as $$
 declare
   clean_email text := lower(trim(new_email));
@@ -184,7 +186,7 @@ begin
     email = clean_email,
     raw_user_meta_data = raw_user_meta_data || jsonb_build_object('name', clean_name, 'email', clean_email),
     encrypted_password = case
-      when clean_pwd <> '' then crypt(clean_pwd, gen_salt('bf'))
+      when clean_pwd <> '' then extensions.crypt(clean_pwd, extensions.gen_salt('bf'))
       else encrypted_password
     end,
     updated_at = now()
